@@ -66,12 +66,12 @@ def guard_time_cutoff(now: datetime, no_entry_after: str = "15:00", hard_flat: s
     flat = _parse_hhmm(hard_flat)
     if now_et.time() >= flat:
         return False, (
-            f"GUARD 1 time cutoff -- {_both_tz(now_et)} is past hard flat "
+            f"GUARD 1 time cutoff — {_both_tz(now_et)} is past hard flat "
             f"({flat:%H:%M} ET). Be flat. No new entries."
         )
     if now_et.time() >= cutoff:
         return False, (
-            f"GUARD 1 time cutoff -- no new 0DTE entries after {cutoff:%H:%M} ET. "
+            f"GUARD 1 time cutoff — no new 0DTE entries after {cutoff:%H:%M} ET. "
             f"It is {_both_tz(now_et)}."
         )
     return True, ""
@@ -90,13 +90,13 @@ def guard_opening_lockout(now: datetime, lockout_minutes: int = 15):
     open_dt = datetime.combine(now_et.date(), dtime(9, 30), tzinfo=ET)
     if now_et < open_dt:
         return False, (
-            f"GUARD 2 opening lockout -- premarket. Regular session opens 08:30 CT / 09:30 ET. "
+            f"GUARD 2 opening lockout — premarket. Regular session opens 08:30 CT / 09:30 ET. "
             f"It is {_both_tz(now_et)}."
         )
     unlock = open_dt + timedelta(minutes=lockout_minutes)
     if now_et < unlock:
         return False, (
-            f"GUARD 2 opening lockout -- first {lockout_minutes} minutes are noise. "
+            f"GUARD 2 opening lockout — first {lockout_minutes} minutes are noise. "
             f"Clear at {_both_tz(unlock)}."
         )
     return True, ""
@@ -136,7 +136,7 @@ def guard_event_lockout(
             else:
                 window = f"{abs(delta):.0f} min after"
             return False, (
-                f"GUARD 3 event lockout -- {ev.name} at {_both_tz(when)}, "
+                f"GUARD 3 event lockout — {ev.name} at {_both_tz(when)}, "
                 f"{window} it. No entry from {before_minutes} min before to "
                 f"{after_minutes} min after."
             )
@@ -151,7 +151,7 @@ def guard_daily_loss_limit(day_pnl_r: float, limit_r: float = -2.0):
     """After -2R on the day the desk stops calling trades. **Not overridable.**"""
     if day_pnl_r <= limit_r:
         return False, (
-            f"GUARD 4 daily loss limit -- day is {day_pnl_r:+.2f}R, limit is {limit_r:+.2f}R. "
+            f"GUARD 4 daily loss limit — day is {day_pnl_r:+.2f}R, limit is {limit_r:+.2f}R. "
             f"Desk is closed for today. This one does not get overridden."
         )
     return True, ""
@@ -165,7 +165,7 @@ def guard_max_trades(trades_today: int, limit: int = 3):
     """Overtrading is the most common way a good method loses money."""
     if trades_today >= limit:
         return False, (
-            f"GUARD 5 max trades -- {trades_today} taken today, limit is {limit}. "
+            f"GUARD 5 max trades — {trades_today} taken today, limit is {limit}. "
             f"Done for the day."
         )
     return True, ""
@@ -182,7 +182,7 @@ def guard_cooldown(minutes_since_last_loss: Optional[float], cooldown_minutes: i
     if minutes_since_last_loss < cooldown_minutes:
         remaining = cooldown_minutes - minutes_since_last_loss
         return False, (
-            f"GUARD 6 cooldown -- {minutes_since_last_loss:.0f} min since the last loss, "
+            f"GUARD 6 cooldown — {minutes_since_last_loss:.0f} min since the last loss, "
             f"cooldown is {cooldown_minutes} min. {remaining:.0f} min left."
         )
     return True, ""
@@ -199,13 +199,13 @@ def guard_min_stop_distance(stop_distance: float, mean_bar_range: float, multipl
     loop -- so this guard protects the evidence as much as the account.
     """
     if mean_bar_range is None or math.isnan(mean_bar_range) or mean_bar_range <= 0:
-        return False, "GUARD 7 minimum stop -- no bar-range data to size the stop against."
+        return False, "GUARD 7 minimum stop — no bar-range data to size the stop against."
     if stop_distance is None or math.isnan(stop_distance) or stop_distance <= 0:
-        return False, "GUARD 7 minimum stop -- no stop distance supplied."
+        return False, "GUARD 7 minimum stop — no stop distance supplied."
     required = multiple * mean_bar_range
     if _meaningfully_below(stop_distance, required):
         return False, (
-            f"GUARD 7 minimum stop -- stop is {stop_distance:.2f}, inside bar noise. "
+            f"GUARD 7 minimum stop — stop is {stop_distance:.2f}, inside bar noise. "
             f"Needs {required:.2f} ({multiple}x the {mean_bar_range:.2f} average 5m bar range)."
         )
     return True, ""
@@ -223,16 +223,16 @@ def guard_liquidity(bid: float, ask: float, max_spread_pct: float = 0.10):
     """
     if not bid or not ask or bid <= 0 or ask <= 0:
         return False, (
-            "GUARD 8 liquidity -- no bid/ask available. Check the chain before entering; "
+            "GUARD 8 liquidity — no bid/ask available. Check the chain before entering; "
             "a price chart cannot verify a spread."
         )
     if ask < bid:
-        return False, f"GUARD 8 liquidity -- crossed quote, bid {bid:.2f} above ask {ask:.2f}."
+        return False, f"GUARD 8 liquidity — crossed quote, bid {bid:.2f} above ask {ask:.2f}."
     mid = (bid + ask) / 2
     spread_pct = (ask - bid) / mid
     if _meaningfully_above(spread_pct, max_spread_pct):
         return False, (
-            f"GUARD 8 liquidity -- spread {ask - bid:.2f} on a {mid:.2f} mid is "
+            f"GUARD 8 liquidity — spread {ask - bid:.2f} on a {mid:.2f} mid is "
             f"{spread_pct:.1%} of premium, over the {max_spread_pct:.0%} limit."
         )
     return True, ""
@@ -250,14 +250,14 @@ def guard_chop(ema9: float, ema21: float, ema50: float, atr_value: float, fracti
     """
     values = [ema9, ema21, ema50]
     if any(v is None or math.isnan(v) for v in values):
-        return False, "GUARD 9 chop -- moving average values unavailable."
+        return False, "GUARD 9 chop — moving average values unavailable."
     if atr_value is None or math.isnan(atr_value) or atr_value <= 0:
-        return False, "GUARD 9 chop -- no ATR to measure the tangle against."
+        return False, "GUARD 9 chop — no ATR to measure the tangle against."
     spread = max(values) - min(values)
     threshold = fraction * atr_value
     if _meaningfully_below(spread, threshold):
         return False, (
-            f"GUARD 9 chop -- 9/21/50 EMAs inside {spread:.2f} "
+            f"GUARD 9 chop — 9/21/50 EMAs inside {spread:.2f} "
             f"(9 at {ema9:.2f}, 21 at {ema21:.2f}, 50 at {ema50:.2f}). "
             f"Needs {threshold:.2f} ({fraction} x ATR {atr_value:.2f}). That is chop, not a trend."
         )

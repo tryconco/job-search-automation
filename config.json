@@ -1,18 +1,22 @@
 {
-  "_comment": "Operator-tunable settings. Every value CJ needs to confirm is marked CONFIRM in knowledge/_INDEX.md.",
-  "tickers": [
-    "SPY",
-    "QQQ"
-  ],
+  "_comment": "Operator-tunable settings. Confirmed by CJ 2026-08-26 — see knowledge/_INDEX.md.",
+
+  "tickers": ["SPY", "QQQ"],
   "primary_interval": "5m",
+
   "display_timezone": "America/Chicago",
   "engine_timezone": "America/New_York",
   "show_both_timezones": true,
+
   "risk": {
-    "risk_per_trade_usd": 100,
-    "daily_loss_limit_r": -2.0,
-    "max_trades_per_day": 3,
+    "unit_r_usd": 100,
+    "grade_risk_multiplier": { "A": 3.5, "B": 1.0 },
+    "max_risk_usd": 350,
+
+    "daily_loss_limit_r": -4.0,
+    "max_trades_per_day": 5,
     "cooldown_minutes_after_loss": 15,
+
     "no_entry_after_et": "15:00",
     "hard_flat_et": "15:30",
     "opening_lockout_minutes": 15,
@@ -22,11 +26,13 @@
     "chop_veto_atr_fraction": 0.25,
     "min_stop_bar_range_multiple": 1.5
   },
+
   "grading": {
+    "a_grade_tradeable": true,
     "b_grade_tradeable": true,
-    "b_grade_size_fraction": 0.5,
-    "b_grade_min_conviction": 60
+    "show_conviction": false
   },
+
   "distill": {
     "min_sample": 30,
     "bootstrap_iterations": 2000,

@@ -36,9 +36,9 @@ COMPRESSED_HEADING = "### Compressed — earlier entries"
 
 CALL_FIELDS = [
     "call_id", "timestamp_et", "timestamp_ct", "ticker", "interval", "verdict", "direction",
-    "grade", "conviction", "entry_low", "entry_high", "stop", "target1", "target2",
-    "invalidation", "side", "strike", "est_premium", "contracts", "risk_usd", "guards_failed",
-    "wait_until", "wait_condition", "screenshot", "notes", "graded",
+    "grade", "entry_low", "entry_high", "stop", "target1", "target2",
+    "invalidation", "side", "strike", "est_premium", "contracts", "risk_usd", "risk_r",
+    "guards_failed", "wait_until", "wait_condition", "screenshot", "notes", "graded",
 ]
 
 OUTCOME_FIELDS = [

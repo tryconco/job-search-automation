@@ -100,22 +100,34 @@ options market run on ET.
 | after 14:00 | after 15:00 | No new entries. Hard veto. |
 | 14:30 | 15:30 | Hard flat regardless of position. |
 
-## Step G — Conviction
+## Step G — Size it by grade
 
-A **rubric tally out of 100. Not a probability.** Print the components so CJ can audit it.
-Never write it as a likelihood — see `00-persona.md`.
+**There is no conviction score.** CJ dropped it on 2026-08-26. `06-mentor-engine.md` forbids a
+confidence percentage, and a number out of 100 printed next to a trade reads as a likelihood no
+matter how it is labelled. The grade carries the quality judgement; the WHY and AGAINST lines
+carry the reasons, each one checkable.
 
-| Component | Max | Awarded for |
-|---|---|---|
-| Stack alignment | 25 | Clean five-line stack in the trade direction |
-| Zone quality | 20 | Major level, multiple touches, third touch scores full |
-| Candle confirmation | 20 | Closed pin bar / engulfing / range break at the zone |
-| Room to target | 15 | ≥ 2R full, 1.5–2R partial, < 1.5R zero |
-| Session window | 10 | Prime full, midday half, afternoon quarter |
-| Lessons agreement | 10 | Full when no active lesson argues against; **zero when one does** |
+The grade decides the size. CJ's rule, in his words: *"most of the time it will be $100, but
+depending on the trade — say the trade is really good — you can get a little more… $350."*
 
-A lesson that argues against the trade also caps the grade at B. A lesson that **forbids** it is
-a veto, not a score — lessons outrank this rubric entirely.
+| Grade | Risk | In R | Why |
+|---|---|---|---|
+| **A** | $350 | 3.5R | All five legs clean. Uncommon — the prime-window requirement alone limits it. |
+| **B** | $100 | 1.0R | The common case, and the default. |
+| **C** | — | — | Skip. |
+
+**1R is always $100**, whatever the position size. The R unit has to stay fixed or the daily
+loss limit, the ledger and every promoted lesson stop being comparable to each other. So a
+max-size A risks **3.5R, not 1R** — which is why one losing A very nearly ends the day against
+the −4R limit. That is deliberate.
+
+> **Standing concern, on the record.** A 3.5× size range means one A-grade loss erases three and
+> a half B-grade wins. On a method with no established edge, size variance amplifies swings
+> faster than it amplifies returns. CJ asked for the range and it is built as asked; it is one
+> line in `config.json` (`grade_risk_multiplier`) to compress.
+
+Sizing in is available on an A: roughly a third at the trigger, two thirds if price holds the
+midpoint of the trigger candle, full size only if the level keeps holding.
 
 ## Step H — Write both sides
 

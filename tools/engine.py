@@ -82,8 +82,6 @@ class Decision:
     ticker: str
     direction: str = ""
     grade: str = "C"
-    conviction: int = 0
-    conviction_parts: dict = field(default_factory=dict)
     why: list[str] = field(default_factory=list)
     against: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
@@ -135,36 +133,48 @@ def session_window_score(now: datetime) -> tuple[int, str]:
     return 0, "past the entry cutoff"
 
 
-def score(setup: Setup, ind, now: datetime, lessons_against: Sequence[str] = ()) -> tuple[int, dict]:
-    """The conviction rubric from ``01-decision-engine.md`` Step G.
+def evidence(setup: Setup, ind, now: datetime,
+             lessons_against: Sequence[str] = ()) -> tuple[list[str], list[str]]:
+    """The WHY and AGAINST lines, as plain evidence.
 
-    A tally out of 100, **not a probability**. Components are returned so CJ can audit it.
+    **There is no conviction score.** CJ dropped it: ``06-mentor-engine.md`` forbids a
+    confidence percentage, and a number out of 100 sitting next to a trade reads as a
+    likelihood no matter how it is labelled. The grade (A/B/C) carries the quality judgement;
+    these lines carry the reasons, each one checkable. See ``_INDEX.md`` contradiction 4.
     """
-    parts: dict[str, tuple[int, int, str]] = {}
+    supporting: list[str] = []
+    against: list[str] = []
 
-    s, why = stack_alignment(ind, setup.direction)
-    parts["stack"] = (s, 25, why)
+    stack_pts, stack_why = stack_alignment(ind, setup.direction)
+    (supporting if stack_pts >= 18 else against).append(stack_why)
 
-    zq = {"major": 20, "minor": 10, "none": 0}.get(setup.zone_quality, 0)
-    parts["zone"] = (zq, 20, setup.zone or "no zone named")
+    if setup.zone and setup.zone_quality != "none":
+        supporting.append(f"at {setup.zone} ({setup.zone_quality} level)")
+    else:
+        against.append("not at a real zone — mid-range entries are not setups")
 
-    cc = 20 if (setup.confirmation and setup.confirmed_closed) else 0
-    parts["candle"] = (cc, 20, setup.confirmation or "no confirmation"
-                       if setup.confirmed_closed else "signal candle still developing")
+    if setup.confirmation and setup.confirmed_closed:
+        supporting.append(f"closed {setup.confirmation} at the zone")
+    elif setup.confirmation:
+        against.append(f"{setup.confirmation} is still printing — not confirmed until it closes")
+    else:
+        against.append("no closed-candle confirmation")
 
     rr = setup.rr
-    rs = 15 if rr >= 2.0 else 8 if rr >= 1.5 else 0
-    parts["room"] = (rs, 15, f"{rr:.2f}R to target 1")
+    if rr >= 2.0:
+        supporting.append(f"{rr:.2f}R of room to target 1")
+    elif rr >= 1.5:
+        supporting.append(f"{rr:.2f}R to target 1 — enough, but not generous")
+    else:
+        against.append(f"only {rr:.2f}R to target 1, under the 1.5R floor")
 
-    ws, wwhy = session_window_score(now)
-    parts["session"] = (ws, 10, wwhy)
+    window_pts, window_why = session_window_score(now)
+    (supporting if window_pts >= 10 else against).append(window_why)
 
-    ls = 0 if lessons_against else 10
-    parts["lessons"] = (ls, 10, "; ".join(lessons_against) if lessons_against
-                        else "no active lesson argues against")
+    for lesson in lessons_against:
+        against.append(f"lesson argues against: {lesson}")
 
-    total = sum(v[0] for v in parts.values())
-    return total, parts
+    return supporting, against
 
 
 def grade(setup: Setup, ind, now: datetime, lessons_against: Sequence[str] = ()) -> tuple[str, list[str]]:
@@ -198,6 +208,22 @@ def grade(setup: Setup, ind, now: datetime, lessons_against: Sequence[str] = ())
 # sizing
 # --------------------------------------------------------------------------------------
 
+def risk_budget(cfg: dict, grade_letter: str) -> float:
+    """Dollar risk for this grade.
+
+    CJ's rule, in his words: *"most of the time $100, but if the trade is really good you can
+    get a little more — $350."* Grade A needs all five legs clean, including the prime session
+    window, so it is the uncommon case and $100 stays the default.
+
+    **1R is always ``unit_r_usd``**, regardless of what this returns. The R accounting unit has
+    to stay fixed or the daily loss limit, the ledger and every lesson stop being comparable.
+    A max-size A therefore risks 3.5R, not 1R.
+    """
+    unit = cfg["risk"]["unit_r_usd"]
+    multiplier = cfg["risk"]["grade_risk_multiplier"].get(grade_letter, 1.0)
+    return min(unit * multiplier, cfg["risk"]["max_risk_usd"])
+
+
 def size_position(setup: Setup, cfg: dict, grade_letter: str,
                   premium: Optional[float] = None,
                   premium_at_stop: Optional[float] = None) -> tuple[int, str]:
@@ -207,14 +233,13 @@ def size_position(setup: Setup, cfg: dict, grade_letter: str,
     (``02-trycon-mas.md``). In that case: **1 contract and say so**, rather than inventing a
     number that looks precise.
     """
-    budget = cfg["risk"]["risk_per_trade_usd"]
-    if grade_letter == "B":
-        budget *= cfg["grading"]["b_grade_size_fraction"]
+    budget = risk_budget(cfg, grade_letter)
+    unit = cfg["risk"]["unit_r_usd"]
 
     if premium is None or premium_at_stop is None:
         return 1, (
             f"Size it off your chain — I can't see a bid/ask from a price chart. "
-            f"Budget is ${budget:,.0f} ({'half' if grade_letter == 'B' else 'full'} size)."
+            f"Budget is ${budget:,.0f} on this {grade_letter} ({budget / unit:.1f}R)."
         )
 
     per_contract = max(0.01, (premium - premium_at_stop)) * 100
@@ -224,7 +249,10 @@ def size_position(setup: Setup, cfg: dict, grade_letter: str,
             f"1 contract risks ~${per_contract:,.0f}, over your ${budget:,.0f} budget. "
             f"Skip it or cut size elsewhere — I'm not rounding you into a bigger position."
         )
-    return n, f"~${per_contract:,.0f} risk per contract against a ${budget:,.0f} budget"
+    return n, (
+        f"~${per_contract:,.0f} risk per contract against a ${budget:,.0f} budget "
+        f"({budget / unit:.1f}R on {'an' if grade_letter == 'A' else 'a'} {grade_letter})"
+    )
 
 
 # --------------------------------------------------------------------------------------
@@ -269,7 +297,7 @@ def decide(
         )
 
     letter, missing = grade(setup, ind, now, lessons_against)
-    conviction, parts = score(setup, ind, now, lessons_against)
+    supporting, against = evidence(setup, ind, now, lessons_against)
 
     ctx = guard_ctx or G.GuardContext(now=now)
     ctx.now = now
@@ -287,11 +315,9 @@ def decide(
 
     decision = Decision(
         verdict="NO TRADE", ticker=ticker, direction=setup.direction, grade=letter,
-        conviction=conviction, conviction_parts={k: v for k, v in parts.items()},
         missing=missing, guard_vetoes=vetoes, setup=setup, reconciliation=reconciliation,
+        why=supporting, against=against,
     )
-    decision.why = [f"{v[2]} ({v[0]}/{v[1]})" for v in parts.values() if v[0] > 0]
-    decision.against = [f"{v[2]} (0/{v[1]})" for v in parts.values() if v[0] == 0]
 
     # --- a guard veto that expires on a clock is a WAIT, not a NO TRADE
     if vetoes:
@@ -318,18 +344,15 @@ def decide(
         decision.verdict = "NO TRADE"
         return decision
 
-    if letter == "B":
-        if not cfg["grading"]["b_grade_tradeable"]:
-            decision.verdict = "NO TRADE"
-            decision.missing.append("B grades are not tradeable under the current config")
-            return decision
-        if conviction < cfg["grading"]["b_grade_min_conviction"]:
-            decision.verdict = "NO TRADE"
-            decision.missing.append(
-                f"conviction {conviction} is under the {cfg['grading']['b_grade_min_conviction']} "
-                "floor for a B"
-            )
-            return decision
+    if letter == "B" and not cfg["grading"]["b_grade_tradeable"]:
+        decision.verdict = "NO TRADE"
+        decision.missing.append("B grades are not tradeable under the current config")
+        return decision
+
+    if letter == "A" and not cfg["grading"].get("a_grade_tradeable", True):
+        decision.verdict = "NO TRADE"
+        decision.missing.append("A grades are not tradeable under the current config")
+        return decision
 
     decision.verdict = "TRADE"
     decision.contracts, decision.contract_note = size_position(
@@ -388,7 +411,7 @@ def render(d: Decision, now: Optional[datetime] = None) -> str:
         lines = [f"WAIT — send me a screenshot at {when}", "", "WHY"]
         lines += [f"{w}" if w.startswith("·") else f"· {w}" for w in (d.wait_for or d.why)]
         if d.grade and d.setup:
-            lines += ["", f"Setup is a {d.grade} at conviction {d.conviction}/100 (rubric)."]
+            lines += ["", f"Setup grades {d.grade} as it stands."]
         if d.missing:
             lines += ["", "STILL MISSING"] + [f"· {m}" for m in d.missing]
         lines += ["", CLOSE_OTHER, "", SIGNOFF]
@@ -400,17 +423,19 @@ def render(d: Decision, now: Optional[datetime] = None) -> str:
             lines.append(f"· {v.reason}")
         for m in d.missing:
             lines.append(f"· Missing {m}")
-        for a in d.against:
-            lines.append(f"· {a}")
+        if not d.guard_vetoes and not d.missing:
+            # nothing else explained it, so show the evidence that argued against
+            for a in d.against:
+                lines.append(f"· {a}")
         if d.grade:
-            lines += ["", f"Grade {d.grade} · conviction {d.conviction}/100 (rubric)."]
+            lines += ["", f"Grade {d.grade}."]
         lines += ["", CLOSE_OTHER, "", SIGNOFF]
         return "\n".join(lines)
 
     s = d.setup
     side = "LONG" if s.direction.startswith("l") else "SHORT"
     lines = [
-        f"TRADE — {side} {d.ticker}  ·  Grade {d.grade}  ·  conviction {d.conviction}/100 (rubric)",
+        f"TRADE — {side} {d.ticker}  ·  Grade {d.grade}",
         "", "WHY",
     ]
     lines += [f"· {w}" for w in d.why]
@@ -435,8 +460,7 @@ def render(d: Decision, now: Optional[datetime] = None) -> str:
         "· Hard flat by 14:30 CT / 15:30 ET regardless — 0DTE theta after that is a coin flip",
         "· If it hasn't moved toward T1 in 20 minutes, close it. Dead trade, live theta.",
         "",
-        CLOSE_A if d.grade == "A" else CLOSE_OTHER if d.grade == "C" else
-        "Take the trigger or leave it. Half size on a B.",
+        CLOSE_A,
         "", SIGNOFF,
     ]
     return "\n".join(lines)

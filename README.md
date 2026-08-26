@@ -6,6 +6,10 @@ A Claude Code project that turns a TradingView screenshot into one of three answ
 Built for 0DTE SPY/QQQ options, **long calls and long puts only, never spreads**, in a paper
 account, by an operator with a full-time job who checks in from his phone.
 
+**A and B setups are both tradeable, separated by size:** A risks $350 (3.5R), B risks $100
+(1.0R), 1R is always $100. Up to 5 trades a day; the desk closes at −4R. There is no conviction
+score — the grade carries the judgement and the WHY/AGAINST lines carry the reasons.
+
 ```
 screenshot ──► read it ──► verify against live bars ──► today's session context
                                                               │
@@ -80,12 +84,12 @@ learn to trade less and call that improvement.
 
 ```
 CLAUDE.md              operating instructions — the pipeline and the response contract
-config.json            every tunable number, including the ones CJ still needs to confirm
+config.json            every tunable number — risk tiers, limits, the promotion bar
 
 knowledge/             how CJ thinks
   _INDEX.md            ← START HERE. What each file governs, and where they contradict.
   00-persona.md        voice, the layer rules, forbidden claims
-  01-decision-engine.md grades, the conviction rubric, verdict selection
+  01-decision-engine.md grades, sizing by grade, verdict selection
   02-trycon-mas.md     how to read his chart          (his file, verbatim)
   03-options-playbook.md price action and mechanics   (his file, verbatim + scope note)
   04-risk-rules.md     the nine guards, sizing, exits
@@ -97,7 +101,7 @@ sessions/              ONE file per trading day, rebuilt fresh each morning
 ledger/                calls.csv (every call, permanent) · outcomes.csv · screenshots/
 lessons/               LESSONS.md · CHANGELOG.md · candidates.md
 tools/                 market · vision · session · engine · grade · distill · guards
-tests/                 181 tests, no network
+tests/                 187 tests, no network
 ```
 
 ## Tools
@@ -108,7 +112,7 @@ tests/                 181 tests, no network
 | `vision.py` | Structures for what was read off the image, with confidence, and the reconciliation against live bars. |
 | `session.py` | Today's file: create, append, compress, carry forward. Plus the ledger. |
 | `guards.py` | The nine hard vetoes. Pure functions, no I/O, tested at both sides of every boundary. |
-| `engine.py` | Setup → grade → guards → verdict → rendered response. **Addition to the original scaffold** — see below. |
+| `engine.py` | Setup → grade → guards → sizing → verdict → rendered response. **Addition to the original scaffold** — see below. |
 | `grade.py` | Walk-forward grading of resolved calls, including skips. |
 | `distill.py` | The weekly learning pass and the promotion bar. |
 
@@ -171,9 +175,10 @@ Stated plainly, because a system that hides these is worse than no system.
 9. **Screenshot reading is done by the model, not by OCR.** Confidence is recorded per value,
    and an unreadable value is reported as unreadable — but a confident misread is still
    possible. This is exactly why no level ever comes from a pixel.
-10. **Several settings are still placeholders**, not CJ's numbers — dollar risk per trade, and
-    whether a B grade is tradeable at all. See the open questions table in
-    `knowledge/_INDEX.md`.
+10. **Position size varies 3.5× between an A and a B** ($350 vs $100), at CJ's instruction. One
+    A-grade loss erases three and a half B-grade wins, so on a method with no established edge
+    this amplifies swings faster than returns. It is one config line to compress. Three smaller
+    questions are still open — see the table in `knowledge/_INDEX.md`.
 
 ---
 

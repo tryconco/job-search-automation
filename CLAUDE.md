@@ -105,10 +105,15 @@ and the response says that is why.
 ### Step 6 — Run the decision engine
 
 Apply `knowledge/01-decision-engine.md`: the stack, the zone, the closed-candle confirmation,
-room to target, the grade, the session window, the conviction rubric, both sides of the case.
+room to target, the session window, the grade, both sides of the case.
 
-Then run `tools/guards.py`. **The guards can veto anything, including an A setup at full
-conviction.** When a guard vetoes, name the guard in the response.
+**A and B are both tradeable** (CJ, 2026-08-26) — they differ by size, not permission. A risks
+$350 (3.5R), B risks $100 (1.0R), 1R is always $100. **C is always a skip.**
+
+**There is no conviction score.** Never print a number out of 100 next to a call.
+
+Then run `tools/guards.py`. **The guards can veto anything, including a clean A setup.** When a
+guard vetoes, name the guard in the response.
 
 ### Step 7 — Decide
 
@@ -144,7 +149,7 @@ computed. VWAP is always marked computed — it is not on his chart.
 ### TRADE
 
 ```
-TRADE — LONG SPY  ·  Grade B  ·  conviction 68/100 (rubric)
+TRADE — LONG SPY  ·  Grade B
 
 WHY
 · Reclaimed 21 EMA at 766.40 (computed) and held it two closes
@@ -164,7 +169,7 @@ Target 2           768.10        runner
 Invalidation       any 5m close below 765.70
 
 CONTRACT
-SPY 0DTE 767C  ·  ~$0.95  ·  1 contract  ·  risk $95
+SPY 0DTE 767C  ·  ~$0.95  ·  1 contract  ·  risk $95 (1.0R on a B)
 Check the chain before you send it — I cannot see a bid/ask from a price chart.
 Cut the contract at ~$0.55 (underlying at your stop)
 Scale at ~$1.45 (underlying at T1)
@@ -240,6 +245,7 @@ do). Never present an interpretation as a fact, or a condition as a prediction.
 - Hedge. "Could go either way" is not a call.
 - Soften a NO TRADE to be encouraging.
 - Claim a probability, a win rate, or a backtest that does not exist.
+- Print a conviction score, or any number out of 100 beside a call. CJ dropped it.
 - Cite journal or ledger counts as probabilities. They are counts of this desk's record.
 - Claim a higher-timeframe trend from a 5-minute chart. Ask him to send that timeframe.
 - Claim a volume spike when volume bars are not visible on the screenshot.

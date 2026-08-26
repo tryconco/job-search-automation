@@ -92,37 +92,48 @@ data**. Never fabricate a level. This one has no override.
 
 ---
 
-### 4. Conviction score vs "no confidence percentage"  ·  `06` vs BUILD_PROMPT  ·  **substantive, resolved**
+### 4. Conviction score vs "no confidence percentage"  ·  `06` vs BUILD_PROMPT  ·  **RULED BY CJ — dropped**
 
 - `06-mentor-engine.md`: *"No confidence percentage. Do not say a setup is seventy percent
   likely."*
 - BUILD_PROMPT Part 4: the sample TRADE header reads `conviction 68`.
 
-**Build's resolution.** Keep the number, strip the probability reading. Conviction is a
-**rubric tally out of 100** with its six components printed (`01-decision-engine.md` Step G), so
-it is auditable arithmetic, not a forecast. It is never phrased as a likelihood, and the header
-prints `conviction 68/100 (rubric)` so the word cannot be mistaken for a percentage chance.
+**CJ ruled on 2026-08-26: drop it entirely.** `06` wins outright.
 
-**Risk if wrong:** if CJ reads it as a probability anyway, the rule in `06` has been violated in
-effect even though the letter is satisfied. Say the word if you want it removed entirely.
+The build initially kept it as a labelled rubric tally — `conviction 68/100 (rubric)` — on the
+argument that auditable arithmetic is not a forecast. CJ overruled that, and he was right: a
+number out of 100 sitting next to a trade reads as a likelihood however it is labelled, which is
+exactly what `06` forbids.
+
+**What replaced it.** The grade (A/B/C) carries the quality judgement. The WHY and AGAINST lines
+carry the reasons, each one checkable against the chart or the bars. `engine.evidence()` returns
+those lines with no points attached, and there is a test asserting the words "conviction",
+"/100" and "rubric" appear in no response. The `conviction` column is gone from
+`ledger/calls.csv` and the conviction bucket is gone from the distillation pass.
 
 ---
 
-### 5. Is a Grade B tradeable?  ·  `06` vs BUILD_PROMPT  ·  **SUBSTANTIVE, UNRESOLVED — needs CJ**
+### 5. Is a Grade B tradeable?  ·  `06` vs BUILD_PROMPT  ·  **RULED BY CJ — yes, both A and B**
 
 - `06-mentor-engine.md` closing lines: *"Actionable A"* … *"Everything else, B, C, premarket,
-  closed → No setup, no trade. Patience is the position."* That reads as **A-only**.
-- BUILD_PROMPT Part 4: the canonical TRADE example is **Grade B**, conviction 68.
+  closed → No setup, no trade."* That reads as **A-only**.
+- BUILD_PROMPT Part 4: the canonical TRADE example is **Grade B**.
 
-**This is the one contradiction that materially changes how often the desk trades**, so the
-build did not bury a choice inside prose. It is a flag:
+**CJ ruled on 2026-08-26:** *"A or B can be traded, be less strict; multiple trades need to be
+made a day while aiming to be profitable."* BUILD_PROMPT wins. There is **no conviction floor**
+on a B — that gate is gone with conviction itself.
 
-```json
-"grading": { "b_grade_tradeable": true, "b_grade_size_fraction": 0.5, "b_grade_min_conviction": 60 }
-```
+**C is still always a skip**, and the nine guards still veto anything.
 
-Current setting trades B at **half size** with conviction ≥ 60. Set `b_grade_tradeable` to
-`false` for strict A-only. **CJ should decide this, not the build.**
+The two grades are separated by **size, not permission**:
+
+| Grade | Risk | In R |
+|---|---|---|
+| A | $350 | 3.5R |
+| B | $100 | 1.0R |
+
+`06`'s closing lines are followed in spirit rather than to the letter: the actionable closing
+line is now used for both A and B, since both are actionable.
 
 ---
 
@@ -167,14 +178,22 @@ What is **kept** from `07`, because the build prompt has no equivalent and it is
 
 ## OPEN QUESTIONS — nothing in any file answers these
 
-| # | Question | Current placeholder | Where |
-|---|---|---|---|
-| 1 | Is a Grade B tradeable? | yes, half size, conviction ≥ 60 | `config.json` → `grading` |
-| 2 | Dollar risk per trade (1R) | **$100 placeholder** | `config.json` → `risk_per_trade_usd` |
-| 3 | Daily loss limit | −2R (BUILD_PROMPT default; Part 7 says to confirm) | `config.json` → `daily_loss_limit_r` |
-| 4 | Max trades per day | 3 (BUILD_PROMPT default) | `config.json` → `max_trades_per_day` |
-| 5 | Strike selection on 0DTE — how far OTM? | nearest strike ≥ T1, ATM fallback | `tools/market.py` |
-| 6 | Does he trade QQQ the same as SPY, or is SPY primary? | treated identically | `config.json` → `tickers` |
+### Answered by CJ, 2026-08-26
 
-Every placeholder is a **guess by the build**, not a preference of CJ's. They are all one line to
-change.
+| # | Question | His answer | Where |
+|---|---|---|---|
+| 1 | Is a Grade B tradeable? | **Yes — A or B, less strict.** C still skips. | `grading.b_grade_tradeable` |
+| 2 | Dollar risk per trade | **$100 normally, up to $350 when the setup is really good.** Implemented as A=$350 / B=$100, with 1R fixed at $100. | `risk.grade_risk_multiplier` |
+| 3 | Daily loss limit | **Delegated** — "make it make sense for the system." Set to **−4R (−$400)**; derivation in `04-risk-rules.md`. | `risk.daily_loss_limit_r` |
+| 4 | Max trades per day | **5** — "like five options a day, but stay profitable." | `risk.max_trades_per_day` |
+| 5 | Conviction score | **Dropped entirely.** See contradiction 4. | `grading.show_conviction` |
+
+### Still open
+
+| # | Question | Current guess | Where |
+|---|---|---|---|
+| 6 | Strike selection on 0DTE — how far OTM? | nearest strike ≥ T1, ATM fallback | `tools/market.py` |
+| 7 | Does he trade QQQ the same as SPY, or is SPY primary? | treated identically | `config.json` → `tickers` |
+| 8 | Is a 3.5× size range too wide for an unproven method? | built as CJ asked; concern on the record in `04-risk-rules.md` | `risk.grade_risk_multiplier` |
+
+Items 6–8 are **guesses by the build**, not preferences of CJ's. All are one line to change.

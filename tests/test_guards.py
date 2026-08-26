@@ -108,6 +108,16 @@ def test_guard_max_trades_boundaries(taken, expected):
     assert g.guard_max_trades(taken, 3)[0] is expected
 
 
+def test_confirmed_daily_limits_come_from_config():
+    """CJ confirmed 2026-08-26: 5 trades a day, desk closes at -4R."""
+    assert CFG["risk"]["max_trades_per_day"] == 5
+    assert CFG["risk"]["daily_loss_limit_r"] == -4.0
+    assert g.guard_max_trades(4, CFG["risk"]["max_trades_per_day"])[0] is True
+    assert g.guard_max_trades(5, CFG["risk"]["max_trades_per_day"])[0] is False
+    assert g.guard_daily_loss_limit(-3.9, CFG["risk"]["daily_loss_limit_r"])[0] is True
+    assert g.guard_daily_loss_limit(-4.0, CFG["risk"]["daily_loss_limit_r"])[0] is False
+
+
 # ---------------------------------------------------------------- 6. cooldown
 
 @pytest.mark.parametrize("since,expected", [
@@ -191,13 +201,13 @@ def test_run_all_clean_context_passes_everything():
 
 def test_run_all_does_not_short_circuit():
     """CJ sees everything that would have stopped the trade, not just the first thing."""
-    ctx = _clean_ctx(now=et(15, 30), day_pnl_r=-3.0, trades_today=5)
+    ctx = _clean_ctx(now=et(15, 30), day_pnl_r=-5.0, trades_today=9)
     failed = g.vetoes(g.run_all(ctx, CFG))
     assert {r.number for r in failed} >= {1, 4, 5}
 
 
 def test_summarise_lists_each_veto_on_its_own_line():
-    ctx = _clean_ctx(day_pnl_r=-3.0, trades_today=9)
+    ctx = _clean_ctx(day_pnl_r=-5.0, trades_today=9)
     text = g.summarise(g.run_all(ctx, CFG))
     assert text.count("\n") == 1
     assert "GUARD 4" in text and "GUARD 5" in text

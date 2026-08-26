@@ -71,7 +71,6 @@ class Record:
     verdict: str = ""
     direction: str = ""
     grade: str = ""
-    conviction: Optional[float] = None
     outcome: str = ""
     ambiguous_bar: bool = False
 
@@ -101,14 +100,10 @@ def load_records(calls_path: str = session.CALLS_CSV,
             when = datetime.fromisoformat(c["timestamp_et"])
         except (TypeError, ValueError):
             continue  # unknown stays unknown -- never impute an outcome
-        try:
-            conviction = float(c["conviction"]) if c.get("conviction") else None
-        except ValueError:
-            conviction = None
         out.append(Record(
             call_id=o["call_id"], when=when, r_multiple=r, ticker=c.get("ticker", ""),
             verdict=c.get("verdict", ""), direction=c.get("direction", ""),
-            grade=c.get("grade", ""), conviction=conviction, outcome=o.get("outcome", ""),
+            grade=c.get("grade", ""), outcome=o.get("outcome", ""),
             ambiguous_bar=o.get("ambiguous_bar") == "yes",
         ))
     return sorted(out, key=lambda r: r.when)
@@ -225,11 +220,6 @@ BUCKETERS: dict[str, Callable[[Record], Optional[str]]] = {
     "day of week": lambda r: r.weekday,
     "ticker": lambda r: r.ticker or None,
     "verdict": lambda r: r.verdict or None,
-    "conviction band": lambda r: (
-        None if r.conviction is None else
-        "conviction under 60" if r.conviction < 60 else
-        "conviction 60-79" if r.conviction < 80 else "conviction 80+"
-    ),
 }
 
 
