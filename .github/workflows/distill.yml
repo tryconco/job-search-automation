@@ -1,0 +1,62 @@
+name: Weekly distillation
+
+# Sundays. The learning pass: re-measure every bucket, promote only what clears the bar,
+# demote what stopped holding. "No rule changes this week" is a valid and useful report.
+on:
+  schedule:
+    - cron: "0 14 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  distill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run the learning pass
+        run: |
+          python3 tools/distill.py --verbose > /tmp/reasoning.txt
+          python3 tools/distill.py --summary > /tmp/summary.md
+          echo "--- reasoning ---"
+          cat /tmp/reasoning.txt
+          echo "--- summary ---"
+          cat /tmp/summary.md
+
+      - name: Commit rule changes
+        run: |
+          git config user.name  "trycon-desk[bot]"
+          git config user.email "trycon-desk@users.noreply.github.com"
+          git add lessons/
+          if git diff --staged --quiet; then
+            echo "No rule changes this week."
+          else
+            git commit -m "distill: weekly rule review $(date +%F)"
+            git push
+          fi
+
+      - name: Open the weekly issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('/tmp/summary.md', 'utf8');
+            const reasoning = fs.readFileSync('/tmp/reasoning.txt', 'utf8').slice(0, 55000);
+            const body = `${summary}\n\n<details><summary>Full reasoning, every bucket</summary>\n\n\`\`\`\n${reasoning}\n\`\`\`\n\n</details>`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Distillation — ${new Date().toISOString().slice(0, 10)}`,
+              body,
+              labels: ['distillation'],
+            });

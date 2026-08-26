@@ -1,0 +1,64 @@
+name: Nightly grading
+
+# Weekdays at 17:00 ET. GitHub's cron is UTC and fires late and irregularly on the free tier --
+# this job is not time-critical, so that is fine. 21:00 UTC is 17:00 EDT.
+on:
+  schedule:
+    - cron: "0 21 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Day to grade (YYYY-MM-DD). Defaults to today."
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Grade the day
+        id: grade
+        run: |
+          DAY="${{ github.event.inputs.date }}"
+          if [ -z "$DAY" ]; then DAY=$(TZ=America/New_York date +%F); fi
+          echo "day=$DAY" >> "$GITHUB_OUTPUT"
+          python3 tools/grade.py --date "$DAY" --summary > /tmp/summary.md
+          cat /tmp/summary.md
+
+      - name: Commit graded outcomes
+        run: |
+          git config user.name  "trycon-desk[bot]"
+          git config user.email "trycon-desk@users.noreply.github.com"
+          git add ledger/outcomes.csv ledger/calls.csv sessions/ || true
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+          else
+            git commit -m "grade: outcomes for ${{ steps.grade.outputs.day }}"
+            git push
+          fi
+
+      - name: Open the daily issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/summary.md', 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Grading — ${{ steps.grade.outputs.day }}`,
+              body,
+              labels: ['grading'],
+            });
