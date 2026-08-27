@@ -12,6 +12,7 @@ Older days survive as rows in ``ledger/calls.csv`` and, where they taught someth
 from __future__ import annotations
 
 import csv
+import json
 import os
 import re
 from datetime import date, datetime, timedelta
@@ -63,6 +64,29 @@ def session_exists(day: Optional[date] = None, sessions_dir: str = SESSIONS_DIR)
     return os.path.exists(session_path(day, sessions_dir))
 
 
+def _fill_risk_placeholders(body: str, config: Optional[dict] = None) -> str:
+    """Fill the risk numbers from ``config.json`` rather than hardcoding them in the template.
+
+    They were hardcoded once and silently went stale the moment CJ changed the limits, which is
+    exactly the kind of drift that puts a wrong number in front of him at 08:32.
+    """
+    if config is None:
+        with open(os.path.join(ROOT, "config.json")) as fh:
+            config = json.load(fh)
+    risk = config["risk"]
+    unit = risk["unit_r_usd"]
+    mult = risk["grade_risk_multiplier"]
+    for token, value in (
+        ("{UNIT_R}", f"{unit:g}"),
+        ("{MAX_TRADES}", str(risk["max_trades_per_day"])),
+        ("{LOSS_LIMIT}", f"{abs(risk['daily_loss_limit_r']):.2f}"),
+        ("{A_RISK}", f"{min(unit * mult.get('A', 1.0), risk['max_risk_usd']):g}"),
+        ("{B_RISK}", f"{min(unit * mult.get('B', 1.0), risk['max_risk_usd']):g}"),
+    ):
+        body = body.replace(token, value)
+    return body
+
+
 def create_session(
     day: Optional[date] = None,
     sessions_dir: str = SESSIONS_DIR,
@@ -77,6 +101,7 @@ def create_session(
     with open(template_path) as fh:
         body = fh.read()
     body = body.replace("{DATE}", str(day)).replace("{WEEKDAY}", day.strftime("%A"))
+    body = _fill_risk_placeholders(body)
     os.makedirs(sessions_dir, exist_ok=True)
     with open(path, "w") as fh:
         fh.write(body)
@@ -366,7 +391,6 @@ def day_state(day: date, calls_path: str = CALLS_CSV, outcomes_path: str = OUTCO
 
 if __name__ == "__main__":  # pragma: no cover
     import argparse
-    import json
 
     ap = argparse.ArgumentParser(description="Session file and ledger helpers.")
     ap.add_argument("command", choices=["create", "state", "carry", "count"])

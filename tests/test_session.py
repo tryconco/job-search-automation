@@ -222,3 +222,29 @@ def test_day_state_ignores_ungraded_calls(desk):
     state = s.day_state(DAY, desk["calls"], desk["outcomes"])
     assert state["day_pnl_r"] == 0.0
     assert state["last_loss_at"] is None, "unknown stays unknown (07-journal-protocol.md)"
+
+
+# ---------------------------------------------------------------- config drift
+
+def test_session_file_takes_its_risk_numbers_from_config(desk):
+    """These were hardcoded in the template once and went stale the moment CJ changed the
+    limits. A wrong number in front of him at 08:32 is exactly what this test prevents."""
+    from tools import guards as G
+    cfg = G.load_config()
+    path = s.create_session(DAY, desk["sessions"])
+    body = open(path).read()
+
+    assert f"0 / {cfg['risk']['max_trades_per_day']}" in body
+    assert f"{abs(cfg['risk']['daily_loss_limit_r']):.2f}R" in body
+    assert f"${cfg['risk']['unit_r_usd']:g}" in body
+    for token in ("{UNIT_R}", "{MAX_TRADES}", "{LOSS_LIMIT}", "{A_RISK}", "{B_RISK}"):
+        assert token not in body, f"{token} left unfilled"
+
+
+def test_template_hardcodes_no_risk_numbers():
+    """The template must express limits as placeholders, never as literals."""
+    import re
+    body = open(s.TEMPLATE).read()
+    risk_block = body.split("## Risk budget")[1].split("##")[0]
+    assert "{UNIT_R}" in risk_block and "{MAX_TRADES}" in risk_block
+    assert not re.search(r"0 / \d", risk_block), "trade cap must not be a literal"

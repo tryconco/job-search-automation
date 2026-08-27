@@ -35,7 +35,9 @@ _From `lessons/LESSONS.md`. Named here so they are not re-derived on every scree
 
 ## Risk budget
 
-- 1R = $__ · Day P&L: 0.00R · Trades taken: 0 / 3 · Remaining budget: 2.00R
+_Sizing by grade: A risks ${A_RISK} (3.5R), B risks ${B_RISK} (1.0R). 1R is always ${UNIT_R}._
+
+- 1R = ${UNIT_R} · Day P&L: 0.00R · Trades taken: 0 / {MAX_TRADES} · Remaining budget: {LOSS_LIMIT}R
 - Last loss at: _none_
 
 ## Market context cache
